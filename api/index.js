@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 const app = express();
 
-// ✅ Allow CORS
+// ✅ CORS headers for all requests
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -11,7 +11,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Root route
+// ✅ Root
 app.get("/", (req, res) => {
   res.send("✅ Stream Proxy Running. Use /proxy?url=YOUR_URL");
 });
@@ -19,7 +19,6 @@ app.get("/", (req, res) => {
 // ✅ Proxy route
 app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
-
   if (!targetUrl) {
     res.status(400).send("Missing url parameter");
     return;
@@ -40,21 +39,20 @@ app.get("/proxy", async (req, res) => {
       return;
     }
 
-    // যদি playlist হয় (.m3u8) → rewrite করে দাও
+    // 🎯 If .m3u8 → rewrite URLs
     if (targetUrl.includes(".m3u8")) {
-  let body = await response.text();
+      let body = await response.text();
 
-  // সব http(s) URL rewrite
-  body = body.replace(
-    /(https?:\/\/[^\s",]+)/g,
-    (match) => `https://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
-  );
+      // Rewrite all http(s) URLs (segments & key)
+      body = body.replace(
+        /(https?:\/\/[^\s",]+)/g,
+        (match) => `https://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
+      );
 
-  res.set("Content-Type", "application/vnd.apple.mpegurl");
-  res.set("Access-Control-Allow-Origin", "*"); // ✅ CORS for browser
-  res.send(body);
-    }else {
-      // segment বা binary stream
+      res.set("Content-Type", "application/vnd.apple.mpegurl");
+      res.send(body);
+    } else {
+      // Segment or key → binary stream
       res.set("Content-Type", response.headers.get("content-type") || "video/mp2t");
       response.body.pipe(res);
     }
