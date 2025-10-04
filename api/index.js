@@ -42,17 +42,18 @@ app.get("/proxy", async (req, res) => {
 
     // যদি playlist হয় (.m3u8) → rewrite করে দাও
     if (targetUrl.includes(".m3u8")) {
-      let body = await response.text();
+  let body = await response.text();
 
-      body = body.replace(
-        /(https?:\/\/[^\s]+)/g,
-        (match) =>
-          `https://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
-      );
+  // সব http(s) URL rewrite
+  body = body.replace(
+    /(https?:\/\/[^\s",]+)/g,
+    (match) => `https://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
+  );
 
-      res.set("Content-Type", "application/vnd.apple.mpegurl");
-      res.send(body);
-    } else {
+  res.set("Content-Type", "application/vnd.apple.mpegurl");
+  res.set("Access-Control-Allow-Origin", "*"); // ✅ CORS for browser
+  res.send(body);
+    }else {
       // segment বা binary stream
       res.set("Content-Type", response.headers.get("content-type") || "video/mp2t");
       response.body.pipe(res);
