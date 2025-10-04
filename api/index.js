@@ -23,8 +23,8 @@ app.get("/proxy", async (req, res) => {
   if (!targetUrl) return res.status(400).send("Missing url parameter");
 
   // Multiple headers fallback
-  const referers = ["https://liveboxpro.com", "https://ppv.to", "https://cloudvos.in"];
-  const origins  = ["https://liveboxpro.com", "https://ppv.to", "https://cloudvos.in"];
+  const referers = ["https://liveboxpro.com"];
+  const origins  = ["https://liveboxpro.com"];
   const ua       = req.query.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
   let response;
