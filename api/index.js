@@ -11,13 +11,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Root
 app.get("/", (req, res) => {
-  res.send("✅ Stream Proxy is Running. Use /proxy endpoint.");
+  res.send("✅ Stream Proxy Running. Use /proxy?url=YOUR_URL");
 });
 
+// ✅ Proxy
 app.get("/proxy", async (req, res) => {
-  const targetUrl =
-    "https://laaaaaaaal.dupereasy.com/slh/Y29NR1RBV1JTSGdwQTBvcEdZTUdjL1VxdnYwWUVaNjAxME1zSDFjQVE5aFF2VlFnNWFOc0NTYnpOdHpheUJzZTNMSjc0Rkp1cU12TjhUYWdEVGRFUElFNjNRPT0/master.m3u8";
+  const targetUrl = req.query.url || "YOUR_DEFAULT_STREAM_M3U8";
 
   try {
     const r = await fetch(targetUrl, {
@@ -34,13 +35,20 @@ app.get("/proxy", async (req, res) => {
       return;
     }
 
-    const body = await r.text();
-    res.set("Content-Type", "application/vnd.apple.mpegurl");
-
-    // ✅ Add CORS here also
-    res.set("Access-Control-Allow-Origin", "*");
-
-    res.send(body);
+    // যদি playlist (.m3u8) হয় → rewrite segment URLs
+    if (targetUrl.endsWith(".m3u8")) {
+      let body = await r.text();
+      body = body.replace(
+        /(https?:\/\/[^\s]+)/g,
+        (match) => `https://testst-kappa.vercel.app/proxy?url=${encodeURIComponent(match)}`
+      );
+      res.set("Content-Type", "application/vnd.apple.mpegurl");
+      res.send(body);
+    } else {
+      // segment files (.ts, .mp4 ইত্যাদি) binary stream হিসেবে পাঠাও
+      res.set("Content-Type", r.headers.get("content-type") || "video/mp2t");
+      r.body.pipe(res);
+    }
   } catch (err) {
     res.status(500).send("Proxy error: " + err.message);
   }
