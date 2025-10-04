@@ -12,7 +12,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Root route
+// ✅ Root
 app.get("/", (req, res) => {
   res.send("✅ Advanced HLS Proxy Running. Use /proxy?url=YOUR_URL");
 });
@@ -22,30 +22,51 @@ app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send("Missing url parameter");
 
-  // Multiple headers fallback
-  const referers = ["https://liveboxpro.com"];
-  const origins  = ["https://liveboxpro.com"];
-  const ua       = req.query.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+  // Dynamic upstream headers
+  const upstreams = [
+    {
+      referer: "https://liveboxpro.com",
+      origin: "https://liveboxpro.com"
+    },
+    {
+      referer: "https://ppv.to",
+      origin: "https://ppv.to"
+    },
+    {
+      referer: "https://cloudvos.in",
+      origin: "https://cloudvos.in"
+    }
+  ];
+
+  const ua = req.query.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
   let response;
-  for (let i = 0; i < referers.length; i++) {
+  let success = false;
+
+  // ✅ Try all upstream headers
+  for (let up of upstreams) {
     try {
       response = await fetch(targetUrl, {
         headers: {
-          Referer: referers[i],
-          Origin: origins[i],
+          Referer: up.referer,
+          Origin: up.origin,
           "User-Agent": ua
         }
       });
-      if (response.ok) break;
+      if (response.ok) {
+        success = true;
+        break;
+      } else {
+        console.warn(`Failed with referer ${up.referer}: ${response.status}`);
+      }
     } catch (err) {
-      console.warn(`Attempt with referer ${referers[i]} failed: ${err.message}`);
+      console.warn(`Error with referer ${up.referer}: ${err.message}`);
     }
   }
 
-  if (!response || !response.ok) return res.status(500).send("All proxy attempts failed");
+  if (!success) return res.status(500).send("All proxy attempts failed");
 
-  // ✅ If .m3u8 → rewrite playlist
+  // ✅ If playlist (.m3u8)
   if (targetUrl.includes(".m3u8")) {
     let body = await response.text();
 
@@ -59,13 +80,13 @@ app.get("/proxy", async (req, res) => {
     return res.send(body);
   }
 
-  // ✅ If AES key → proxy
+  // ✅ If AES key
   if (targetUrl.includes(".key")) {
     res.set("Content-Type", "application/octet-stream");
     return response.body.pipe(res);
   }
 
-  // ✅ Segment / ts file
+  // ✅ If segment / ts
   res.set("Content-Type", response.headers.get("content-type") || "video/mp2t");
   response.body.pipe(res);
 });
