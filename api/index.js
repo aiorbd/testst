@@ -22,24 +22,11 @@ app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send("Missing url parameter");
 
-  // Dynamic upstream headers
   const upstreams = [
-    {
-      referer: "https://liveboxpro.com",
-      origin: "https://liveboxpro.com"
-    },
-    {
-      referer: "https://ppv.to",
-      origin: "https://ppv.to"
-    },
-    {
-      referer: "https://cloudvos.in",
-      origin: "https://cloudvos.in"
-    },
-    {
-      referer: "https://sportzfy.me/",
-      origin: ""
-    }
+    { referer: "https://liveboxpro.com", origin: "https://liveboxpro.com" },
+    { referer: "https://ppv.to", origin: "https://ppv.to" },
+    { referer: "https://cloudvos.in", origin: "https://cloudvos.in" },
+    { referer: "https://sportzfy.me/", origin: "" }
   ];
 
   const ua = req.query.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
@@ -47,8 +34,7 @@ app.get("/proxy", async (req, res) => {
   let response;
   let success = false;
 
-  // ✅ Try all upstream headers
-  for (let up of upstreams) {
+  for (const up of upstreams) {
     try {
       response = await fetch(targetUrl, {
         headers: {
@@ -61,41 +47,42 @@ app.get("/proxy", async (req, res) => {
         success = true;
         break;
       } else {
-        console.warn(`Failed with referer ${up.referer}: ${response.status}`);
+        console.warn(`❌ Failed with referer ${up.referer}: ${response.status}`);
       }
     } catch (err) {
-      console.warn(`Error with referer ${up.referer}: ${err.message}`);
+      console.warn(`⚠️ Error with referer ${up.referer}: ${err.message}`);
     }
   }
 
-  if (!success) return res.status(500).send("All proxy attempts failed");
+  if (!success) return res.status(502).send("❌ All proxy attempts failed");
 
-  // ✅ If playlist (.m3u8)
-  if (targetUrl.includes(".m3u8")) {
+  const contentType = response.headers.get("content-type") || "";
+
+  // ✅ Playlist (.m3u8)
+  if (targetUrl.includes(".m3u8") || contentType.includes("application/vnd.apple.mpegurl")) {
     let body = await response.text();
 
-    // Rewrite all URLs to proxy route
-    body = body.replace(
-      /(https?:\/\/[^\s",]+)/g,
-      (match) => `${req.protocol}://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
+    // Rewrite URLs to proxy
+    body = body.replace(/(https?:\/\/[^\s",]+)/g, (match) =>
+      `${req.protocol}://${req.headers.host}/proxy?url=${encodeURIComponent(match)}`
     );
 
     res.set("Content-Type", "application/vnd.apple.mpegurl");
     return res.send(body);
   }
 
-  // ✅ If AES key
-  if (targetUrl.includes(".key")) {
+  // ✅ AES Key
+  if (targetUrl.includes(".key") || contentType.includes("application/octet-stream")) {
     res.set("Content-Type", "application/octet-stream");
     return response.body.pipe(res);
   }
 
-  // ✅ If segment / ts
-  res.set("Content-Type", response.headers.get("content-type") || "video/mp2t");
+  // ✅ TS Segment
+  res.set("Content-Type", contentType || "video/mp2t");
   response.body.pipe(res);
 });
 
 // ✅ Start server
 app.listen(PORT, () => {
-  console.log(`✅ Advanced HLS Proxy Running on port ${PORT}`);
+  console.log(`🚀 Proxy running at http://localhost:${PORT}/proxy`);
 });
