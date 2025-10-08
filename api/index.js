@@ -35,6 +35,10 @@ app.get("/proxy", async (req, res) => {
     {
       referer: "https://cloudvos.in",
       origin: "https://cloudvos.in"
+    },
+    {
+      referer: "https://sportzfy.me/",
+      origin: ""
     }
   ];
 
