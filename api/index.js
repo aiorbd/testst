@@ -29,7 +29,7 @@ app.get("/proxy", async (req, res) => {
     { referer: "https://sportzfy.me/", origin: "" }
   ];
 
-  const ua = req.query.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+  const ua = req.query.ua || "ExoPlayerLib/2.19.1 (Linux;Android 13) ExoPlayer/2.19.1";
 
   let response;
   let success = false;
